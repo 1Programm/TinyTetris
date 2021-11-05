@@ -10,6 +10,10 @@
 #define OLED_RESET     4        // Reset pin # (or -1 if sharing Arduino reset pin)
 #define SCREEN_ADDRESS 0x3C     //< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
 
+
+// Ceiling division macro
+#define CEIL(x, y) (1 + ((x - 1) / y))
+
 // Game constants
 #define BLOCK_SIZE 5
 #define GAME_X 8
@@ -19,7 +23,7 @@
 
 // How many bytes to be used to capture the GAME_W
 // Constant used for the game array
-#define GAME_BYTE_W (1 + ((GAME_W - 1) / 8))
+#define GAME_BYTE_W CEIL(GAME_W, 8)//(1 + ((GAME_W - 1) / 8))
 
 
 // Init display
@@ -71,14 +75,14 @@ const unsigned char blocks[5][2] = {
 
 //Calculate game array where one BIT is a 5x5 field (1px between each tile)
 //TODO: initialize array dynamically
-const unsigned char game[GAME_H][GAME_BYTE_W] = {
+unsigned char game[GAME_H][GAME_BYTE_W] = {
         { 0B00000000, 0B00000000, 0B00000000 },
         { 0B00000000, 0B00000000, 0B00000000 },
         { 0B00000000, 0B00000000, 0B00000000 },
-        { 0B00000000, 0B01011000, 0B00000000 },
-        { 0B00000000, 0B00001000, 0B00000000 },
-        { 0B00000000, 0B00001000, 0B00000000 },
-        { 0B00000000, 0B01011000, 0B00000000 },
+        { 0B00000000, 0B00000000, 0B00000000 },
+        { 0B00000000, 0B00000000, 0B00000000 },
+        { 0B00000000, 0B00000000, 0B00000000 },
+        { 0B00000000, 0B00000000, 0B00000000 },
         { 0B00000000, 0B00000000, 0B00000000 },
         { 0B00000000, 0B00000000, 0B00000000 },
         { 0B00000000, 0B00000000, 0B00000000 }
@@ -94,6 +98,42 @@ void pixel(int x, int y){
     display.drawPixel(x, y, WHITE);
 }
 
+void setTile(int x, int y, bool state){
+    int ix = x / 8;
+    int rx = x % 8;
+
+    unsigned char b = game[y][ix];
+    unsigned char posByte = 0B10000000 >> rx;
+
+    if(state){
+        game[y][ix] = b | posByte;
+    }
+    else {
+        if(b & posByte) {
+            game[y][ix] &= ~(0B10000000 >> rx);
+
+            //Tmp fix to clear tiles
+            display.fillRect(GAME_X + x * (BLOCK_SIZE + 1), GAME_Y + y * (BLOCK_SIZE + 1), BLOCK_SIZE, BLOCK_SIZE, BLACK);
+        }
+    }
+}
+
+void printByte(unsigned char b){
+    Serial.print("Byte[");
+    while(true){
+        if(b & 1){
+            Serial.print("1");
+        }
+        else {
+            Serial.print("0");
+        }
+
+        b = b >> 1;
+        if(b == 0) break;
+    }
+    Serial.println("]");
+}
+
 
 // ################# SETUP METHOD #################
 void setup() {
@@ -106,6 +146,7 @@ void setup() {
         for(;;); // Don't proceed, loop forever
     }
 
+    Serial.println("--------------");
     Serial.print("GAME_X: ");
     Serial.println(GAME_X);
     Serial.print("GAME_Y: ");
@@ -114,6 +155,8 @@ void setup() {
     Serial.println(GAME_W);
     Serial.print("GAME_H: ");
     Serial.println(GAME_H);
+    Serial.print("GAME_BYTE_W: ");
+    Serial.println(GAME_BYTE_W);
 
     // Clear the buffer
     display.clearDisplay();
@@ -123,12 +166,42 @@ void setup() {
     drawBorder();
 
     delay(100);
+    //Draw a smiley :D
+    setTile(4, 4, true);
+    setTile(6, 4, true);
+    setTile(7, 4, true);
+    setTile(7, 5, true);
+    setTile(7, 6, true);
+    setTile(7, 7, true);
+    setTile(6, 7, true);
+    setTile(4, 7, true);
+
     drawGame();
+
+    delay(2000);
+
+    for(int x=0;x<GAME_W;x++){
+        for(int y=0;y<GAME_H;y++){
+            setTile(x, y, true);
+            drawGame();
+            delay(10);
+        }
+    }
+
+    delay(2000);
+
+    for(int x=0;x<GAME_W;x++){
+        for(int y=0;y<GAME_H;y++){
+            setTile(x, y, false);
+            drawGame();
+            delay(10);
+        }
+    }
+
 }
 
 // Draws the border around the space where the game is played
 void drawBorder(){
-    display.drawLine(0, 2, SCREEN_WIDTH-1, 2, WHITE);
 
     display.setRotation(3);
     display.setTextSize(1);
@@ -137,9 +210,10 @@ void drawBorder(){
     display.println("130920");
     display.setRotation(0);
 
+    display.drawLine(0, 0, SCREEN_WIDTH-1, 0, WHITE);
     display.drawLine(0, SCREEN_HEIGHT-2, SCREEN_WIDTH-1, SCREEN_HEIGHT-2, WHITE);
-    display.drawLine(SCREEN_WIDTH-1, 2, SCREEN_WIDTH-1, SCREEN_HEIGHT-2, WHITE);
-    display.drawLine(GAME_X, 2, GAME_X, SCREEN_HEIGHT-2, WHITE);
+    display.drawLine(SCREEN_WIDTH-1, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-2, WHITE);
+    display.drawLine(GAME_X-1, 0, GAME_X-1, SCREEN_HEIGHT-2, WHITE);
 
     display.display();
 }
