@@ -10,18 +10,23 @@
 #define OLED_RESET     4        // Reset pin # (or -1 if sharing Arduino reset pin)
 #define SCREEN_ADDRESS 0x3C     //< See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
 
-
+// Game constants
 #define BLOCK_SIZE 5
 #define GAME_X 8
 #define GAME_Y 2
 #define GAME_W ((SCREEN_WIDTH - GAME_X) / (BLOCK_SIZE + 1))
 #define GAME_H ((SCREEN_HEIGHT - GAME_Y * 2) / (BLOCK_SIZE + 1))
 
+// How many bytes to be used to capture the GAME_W
+// Constant used for the game array
+#define GAME_BYTE_W (1 + ((GAME_W - 1) / 8))
 
 
+// Init display
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-
+// The different blocks as byte arrays.
+// Each blocks consists out of 2 Bytes (16 bits for the 4x4 space)
 const unsigned char blocks[5][2] = {
         /*
          * . # # .
@@ -64,8 +69,6 @@ const unsigned char blocks[5][2] = {
         { 0B10001100, 0B01000000 }
 };
 
-#define GAME_BYTE_W (1 + ((GAME_W - 1) / 8))
-
 //Calculate game array where one BIT is a 5x5 field (1px between each tile)
 //TODO: initialize array dynamically
 const unsigned char game[GAME_H][GAME_BYTE_W] = {
@@ -81,98 +84,18 @@ const unsigned char game[GAME_H][GAME_BYTE_W] = {
         { 0B00000000, 0B00000000, 0B00000000 }
 };
 
-
-
-
-
-
-//void drawBlock(int id, int x, int y){
-//    drawByteArray(id, x * (PIECE_SCALE + BLOCK_SIZE), y * (PIECE_SCALE + BLOCK_SIZE), PIECE_SCALE);
-//}
-//
-//void drawScaledPixel(int posx, int posy, int scale){
-//    for(int x=0;x<scale;x++) {
-//        for (int y=0;y<scale;y++) {
-//            pixel(posx + x, posy + y);
-//        }
-//    }
-//}
-//
-//void drawByteArray(int id, int posx, int posy, int scale){
-//    Serial.print("Draw Block: ");
-//    Serial.print(id);
-//    Serial.print(" at pos: [");
-//    Serial.print(posx);
-//    Serial.print(", ");
-//    Serial.print(posy);
-//    Serial.println("]");
-//
-//    for(int i=0;i<2;i++){
-//        unsigned char b = blocks[id][i];
-//
-//        if(b & 0B10000000){
-//            int curx = posx + 0 * scale;
-//            int cury = posy + (i * 2 + 0) * scale;
-//            drawScaledPixel(curx, cury, scale);
-//        }
-//
-//        if(b & 0B01000000){
-//            int curx = posx + 1 * scale;
-//            int cury = posy + (i * 2 + 0) * scale;
-//            drawScaledPixel(curx, cury, scale);
-//        }
-//
-//        if(b & 0B00100000){
-//            int curx = posx + 2 * scale;
-//            int cury = posy + (i * 2 + 0) * scale;
-//            drawScaledPixel(curx, cury, scale);
-//        }
-//
-//        if(b & 0B00010000){
-//            int curx = posx + 3 * scale;
-//            int cury = posy + (i * 2 + 0) * scale;
-//            drawScaledPixel(curx, cury, scale);
-//        }
-//
-//        if(b & 0B00001000){
-//            int curx = posx + 0 * scale;
-//            int cury = posy + (i * 2 + 1) * scale;
-//            drawScaledPixel(curx, cury, scale);
-//        }
-//
-//        if(b & 0B00000100){
-//            int curx = posx + 1 * scale;
-//            int cury = posy + (i * 2 + 1) * scale;
-//            drawScaledPixel(curx, cury, scale);
-//        }
-//
-//        if(b & 0B00000010){
-//            int curx = posx + 2 * scale;
-//            int cury = posy + (i * 2 + 1) * scale;
-//            drawScaledPixel(curx, cury, scale);
-//        }
-//
-//        if(b & 0B00000001){
-//            int curx = posx + 3 * scale;
-//            int cury = posy + (i * 2 + 1) * scale;
-//            drawScaledPixel(curx, cury, scale);
-//        }
-//    }
-//}
-
+// Draws a tile defined by the BLOCK_SIZE at a position (posx, posy)
 void drawTile(int posx, int posy){
     display.fillRect(GAME_X + posx * (BLOCK_SIZE + 1), GAME_Y + posy * (BLOCK_SIZE + 1), BLOCK_SIZE, BLOCK_SIZE, WHITE);
-//    for(int x=0;x<BLOCK_SIZE;x++){
-//        for(int y=0;y<BLOCK_SIZE;y++){
-//
-//        }
-//    }
 }
 
+// Wrapper method to draw a white pixel on screen
 void pixel(int x, int y){
     display.drawPixel(x, y, WHITE);
 }
 
+
+// ################# SETUP METHOD #################
 void setup() {
     Serial.begin(9600);
     while (!Serial);
@@ -203,6 +126,7 @@ void setup() {
     drawGame();
 }
 
+// Draws the border around the space where the game is played
 void drawBorder(){
     display.drawLine(0, 2, SCREEN_WIDTH-1, 2, WHITE);
 
@@ -220,9 +144,8 @@ void drawBorder(){
     display.display();
 }
 
+// Draws the actual game state from the game array
 void drawGame(){
-//    display.drawRect(GAME_X, GAME_Y, GAME_W * BLOCK_SIZE, GAME_H * BLOCK_SIZE, WHITE);
-
     for(int x=0;x<GAME_BYTE_W;x++){
         for(int y=0;y<GAME_H;y++){
             unsigned char b = game[y][x];
@@ -288,5 +211,6 @@ void drawGame(){
     display.display();
 }
 
+// ################# LOOP METHOD #################
 void loop() {
 }
