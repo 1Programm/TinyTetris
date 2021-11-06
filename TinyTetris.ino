@@ -88,6 +88,43 @@ unsigned char game[GAME_H][GAME_BYTE_W] = {
         { 0B00000000, 0B00000000, 0B00000000 }
 };
 
+//Current tile
+int curBlock_id = -1;
+int curBlock_x;
+int curBlock_y;
+int curBlock_rot;
+
+void drawBlock(int id, int posx, int posy, int rot, bool removeOld, int posx_old, int posy_old){
+//    printByte(blocks[id][0]);
+//    Serial.println(blocks[id][0]);
+//    printByte(blocks[id][1]);
+
+    for(int i=0;i<2;i++){
+        unsigned char b = blocks[id][i];
+
+        for(int bi=7;bi>=0;bi--){
+            int b_offx = bi % 4;
+            int b_offy = bi / 4 + i * 2;
+
+            if(b & 1){
+                if(removeOld){
+                    _drawTile(posx_old + b_offx, posy_old + b_offy, false);
+                }
+
+                _drawTile(posx + b_offx, posy + b_offy, true);
+            }
+
+            b = b >> 1;
+
+            if(b == 0) break;
+        }
+    }
+}
+
+void _drawTile(int posx, int posy, bool state){
+    setTile(posx, posy, state);
+}
+
 // Draws a tile defined by the BLOCK_SIZE at a position (posx, posy)
 void drawTile(int posx, int posy){
     display.fillRect(GAME_X + posx * (BLOCK_SIZE + 1), GAME_Y + posy * (BLOCK_SIZE + 1), BLOCK_SIZE, BLOCK_SIZE, WHITE);
@@ -165,39 +202,25 @@ void setup() {
     delay(100);
     drawBorder();
 
-    delay(100);
-    //Draw a smiley :D
-    setTile(4, 4, true);
-    setTile(6, 4, true);
-    setTile(7, 4, true);
-    setTile(7, 5, true);
-    setTile(7, 6, true);
-    setTile(7, 7, true);
-    setTile(6, 7, true);
-    setTile(4, 7, true);
-
+    drawBlock(1, 2, 2, 0, false, 0, 0);
     drawGame();
+    delay(1000);
 
-    delay(2000);
+    drawBlock(1, 3, 2, 0, true, 2, 2);
+    drawGame();
+    delay(1000);
 
-    for(int x=0;x<GAME_W;x++){
-        for(int y=0;y<GAME_H;y++){
-            setTile(x, y, true);
-            drawGame();
-            delay(10);
-        }
-    }
+    drawBlock(1, 4, 2, 0, true, 3, 2);
+    drawGame();
+    delay(1000);
 
-    delay(2000);
+    drawBlock(1, 5, 2, 0, true, 4, 2);
+    drawGame();
+    delay(1000);
 
-    for(int x=0;x<GAME_W;x++){
-        for(int y=0;y<GAME_H;y++){
-            setTile(x, y, false);
-            drawGame();
-            delay(10);
-        }
-    }
-
+    drawBlock(1, 6, 2, 0, true, 5, 2);
+    drawGame();
+    delay(1000);
 }
 
 // Draws the border around the space where the game is played
@@ -287,4 +310,11 @@ void drawGame(){
 
 // ################# LOOP METHOD #################
 void loop() {
+//    if(curBlock_id != -1){
+//
+//    }
+//    drawGame();
+//
+//    tx++;
+//    delay(1000);
 }
