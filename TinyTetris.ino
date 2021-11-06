@@ -94,11 +94,30 @@ int curBlock_x;
 int curBlock_y;
 int curBlock_rot;
 
-void drawBlock(int id, int posx, int posy, int rot, bool removeOld, int posx_old, int posy_old){
-//    printByte(blocks[id][0]);
-//    Serial.println(blocks[id][0]);
-//    printByte(blocks[id][1]);
+void moveCurBlock(int vel_x, int vel_y){
+    if(curBlock_id == -1) return;
 
+    int futurePos_x = curBlock_x + vel_x;
+    int futurePos_y = curBlock_y + vel_y;
+
+//    Serial.print("FUTUREPOS_X: ");
+//    Serial.println(futurePos_x);
+//    Serial.print("FUTUREPOS_Y: ");
+//    Serial.println(futurePos_y);
+
+    setBlockWithoutDrawing(curBlock_id, curBlock_x, curBlock_y, curBlock_rot, false);
+    if(isSpaceForBlock(curBlock_id, futurePos_x, futurePos_y)){
+        drawBlock(curBlock_id, futurePos_x, futurePos_y, curBlock_rot, true, curBlock_x, curBlock_y);
+        curBlock_x = futurePos_x;
+        curBlock_y = futurePos_y;
+    }
+    else {
+        setBlockWithoutDrawing(curBlock_id, curBlock_x, curBlock_y, curBlock_rot, true);
+        curBlock_id = -1;
+    }
+}
+
+void setBlockWithoutDrawing(int id, int pos_x, int pos_y, int rot, bool state){
     for(int i=0;i<2;i++){
         unsigned char b = blocks[id][i];
 
@@ -107,11 +126,12 @@ void drawBlock(int id, int posx, int posy, int rot, bool removeOld, int posx_old
             int b_offy = bi / 4 + i * 2;
 
             if(b & 1){
-                if(removeOld){
-                    _drawTile(posx_old + b_offx, posy_old + b_offy, false);
-                }
+                int cur_x = pos_x + b_offx;
+                int cur_y = pos_y + b_offy;
 
-                _drawTile(posx + b_offx, posy + b_offy, true);
+                if(cur_x < 0 || cur_y < 0 || cur_x >= GAME_W || cur_y >= GAME_H) continue;
+
+                setTileWithoutDrawing(cur_x, cur_y, state);
             }
 
             b = b >> 1;
@@ -121,13 +141,98 @@ void drawBlock(int id, int posx, int posy, int rot, bool removeOld, int posx_old
     }
 }
 
-void _drawTile(int posx, int posy, bool state){
-    setTile(posx, posy, state);
+void setTileWithoutDrawing(int x, int y, bool state){
+    int ix = x / 8;
+    int rx = x % 8;
+
+    unsigned char b = game[y][ix];
+    unsigned char posByte = 0B10000000 >> rx;
+
+    if(state){
+        game[y][ix] = b | posByte;
+    }
+    else {
+        game[y][ix] &= ~(posByte);
+//        if(b & posByte) {
+//
+//        }
+    }
+}
+
+bool isSpaceForBlock(int id, int pos_x, int pos_y){
+    for(int i=0;i<2;i++){
+        unsigned char b = blocks[id][i];
+
+        for(int bi=7;bi>=0;bi--){
+            int b_offx = bi % 4;
+            int b_offy = bi / 4 + i * 2;
+
+            if(b & 1){
+                int cur_x = pos_x + b_offx;
+                int cur_y = pos_y + b_offy;
+
+                if(cur_x < 0 || cur_y < 0 || cur_x >= GAME_W || cur_y >= GAME_H) {
+                    return false;
+                }
+
+                if(getTile(cur_x, cur_y)){
+                    return false;
+                }
+            }
+
+            b = b >> 1;
+
+            if(b == 0) break;
+        }
+    }
+
+    return true;
+}
+
+void drawBlock(int id, int pos_x, int pos_y, int rot){
+    drawBlock(id, pos_x, pos_y, rot, false, 0, 0);
+}
+
+void drawBlock(int id, int pos_x, int pos_y, int rot, bool removeOld, int pos_x_old, int pos_y_old){
+    for(int i=0;i<2;i++){
+        unsigned char b = blocks[id][i];
+
+        for(int bi=7;bi>=0;bi--){
+            int b_off_x = bi % 4;
+            int b_off_y = bi / 4 + i * 2;
+
+            if(b & 1){
+                if(removeOld){
+                    _drawTile(pos_x_old + b_off_x, pos_y_old + b_off_y, false);
+                }
+
+                _drawTile(pos_x + b_off_x, pos_y + b_off_y, true);
+            }
+
+            b = b >> 1;
+
+            if(b == 0) break;
+        }
+    }
+}
+
+bool getTile(int x, int y){
+    int ix = x / 8;
+    int rx = x % 8;
+
+    unsigned char b = game[y][ix];
+    unsigned char posByte = 0B10000000 >> rx;
+
+    return b & posByte;
+}
+
+void _drawTile(int pos_x, int pos_y, bool state){
+    setTile(pos_x, pos_y, state);
 }
 
 // Draws a tile defined by the BLOCK_SIZE at a position (posx, posy)
-void drawTile(int posx, int posy){
-    display.fillRect(GAME_X + posx * (BLOCK_SIZE + 1), GAME_Y + posy * (BLOCK_SIZE + 1), BLOCK_SIZE, BLOCK_SIZE, WHITE);
+void drawTile(int x, int y){
+    display.fillRect(GAME_X + x * (BLOCK_SIZE + 1), GAME_Y + y * (BLOCK_SIZE + 1), BLOCK_SIZE, BLOCK_SIZE, WHITE);
 }
 
 // Wrapper method to draw a white pixel on screen
@@ -146,12 +251,12 @@ void setTile(int x, int y, bool state){
         game[y][ix] = b | posByte;
     }
     else {
-        if(b & posByte) {
+//        if(b & posByte) {
             game[y][ix] &= ~(0B10000000 >> rx);
 
             //Tmp fix to clear tiles
             display.fillRect(GAME_X + x * (BLOCK_SIZE + 1), GAME_Y + y * (BLOCK_SIZE + 1), BLOCK_SIZE, BLOCK_SIZE, BLACK);
-        }
+//        }
     }
 }
 
@@ -202,25 +307,11 @@ void setup() {
     delay(100);
     drawBorder();
 
-    drawBlock(1, 2, 2, 0, false, 0, 0);
-    drawGame();
-    delay(1000);
+//    drawBlock(0, 10, 2, 0);
 
-    drawBlock(1, 3, 2, 0, true, 2, 2);
-    drawGame();
-    delay(1000);
-
-    drawBlock(1, 4, 2, 0, true, 3, 2);
-    drawGame();
-    delay(1000);
-
-    drawBlock(1, 5, 2, 0, true, 4, 2);
-    drawGame();
-    delay(1000);
-
-    drawBlock(1, 6, 2, 0, true, 5, 2);
-    drawGame();
-    delay(1000);
+    curBlock_id = 0;
+    curBlock_x = 0;
+    curBlock_y = 1;
 }
 
 // Draws the border around the space where the game is played
@@ -243,78 +334,109 @@ void drawBorder(){
 
 // Draws the actual game state from the game array
 void drawGame(){
-    for(int x=0;x<GAME_BYTE_W;x++){
-        for(int y=0;y<GAME_H;y++){
+
+    for(int x=0;x<GAME_BYTE_W;x++) {
+        for (int y=0;y<GAME_H;y++) {
             unsigned char b = game[y][x];
 
-            if(b & 0B10000000){
-                int ix = x * 8 + 0;
-                if(ix < GAME_W){
-                    drawTile(ix, y);
+            for (int bi = 7; bi >= 0; bi--) {
+                if (b & 1) {
+                    drawTile(x * 8 + bi, y);
                 }
-            }
 
-            if(b & 0B01000000){
-                int ix = x * 8 + 1;
-                if(ix < GAME_W){
-                    drawTile(ix, y);
-                }
-            }
+                b = b >> 1;
 
-            if(b & 0B00100000){
-                int ix = x * 8 + 2;
-                if(ix < GAME_W){
-                    drawTile(ix, y);
-                }
-            }
-
-            if(b & 0B00010000){
-                int ix = x * 8 + 3;
-                if(ix < GAME_W){
-                    drawTile(ix, y);
-                }
-            }
-
-            if(b & 0B00001000){
-                int ix = x * 8 + 4;
-                if(ix < GAME_W){
-                    drawTile(ix, y);
-                }
-            }
-
-            if(b & 0B00000100){
-                int ix = x * 8 + 5;
-                if(ix < GAME_W){
-                    drawTile(ix, y);
-                }
-            }
-
-            if(b & 0B00000010){
-                int ix = x * 8 + 6;
-                if(ix < GAME_W){
-                    drawTile(ix, y);
-                }
-            }
-
-            if(b & 0B00000001){
-                int ix = x * 8 + 7;
-                if(ix < GAME_W){
-                    drawTile(ix, y);
-                }
+                if (b == 0) break;
             }
         }
     }
+
+//    for(int x=0;x<GAME_BYTE_W;x++){
+//        for(int y=0;y<GAME_H;y++){
+//            unsigned char b = game[y][x];
+//
+//            if(b & 0B10000000){
+//                int ix = x * 8 + 0;
+//                if(ix < GAME_W){
+//                    drawTile(ix, y);
+//                }
+//            }
+//
+//            if(b & 0B01000000){
+//                int ix = x * 8 + 1;
+//                if(ix < GAME_W){
+//                    drawTile(ix, y);
+//                }
+//            }
+//
+//            if(b & 0B00100000){
+//                int ix = x * 8 + 2;
+//                if(ix < GAME_W){
+//                    drawTile(ix, y);
+//                }
+//            }
+//
+//            if(b & 0B00010000){
+//                int ix = x * 8 + 3;
+//                if(ix < GAME_W){
+//                    drawTile(ix, y);
+//                }
+//            }
+//
+//            if(b & 0B00001000){
+//                int ix = x * 8 + 4;
+//                if(ix < GAME_W){
+//                    drawTile(ix, y);
+//                }
+//            }
+//
+//            if(b & 0B00000100){
+//                int ix = x * 8 + 5;
+//                if(ix < GAME_W){
+//                    drawTile(ix, y);
+//                }
+//            }
+//
+//            if(b & 0B00000010){
+//                int ix = x * 8 + 6;
+//                if(ix < GAME_W){
+//                    drawTile(ix, y);
+//                }
+//            }
+//
+//            if(b & 0B00000001){
+//                int ix = x * 8 + 7;
+//                if(ix < GAME_W){
+//                    drawTile(ix, y);
+//                }
+//            }
+//        }
+//    }
 
     display.display();
 }
 
 // ################# LOOP METHOD #################
 void loop() {
-//    if(curBlock_id != -1){
-//
-//    }
-//    drawGame();
-//
-//    tx++;
-//    delay(1000);
+    drawGame();
+
+    if(curBlock_id != -1){
+        moveCurBlock(1, 0);
+//        printCurBlockInfo();
+    }
+
+
+    delay(1000);
+}
+
+void printCurBlockInfo(){
+    Serial.println("Cur Block:");
+    Serial.print("ID: ");
+    Serial.println(curBlock_id);
+    Serial.print("X: ");
+    Serial.println(curBlock_x);
+    Serial.print("Y: ");
+    Serial.println(curBlock_y);
+//    Serial.print("Rot: ");
+//    Serial.println(curBlock_rot);
 }
