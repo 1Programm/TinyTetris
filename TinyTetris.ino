@@ -3,6 +3,8 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
+#include "dpad.h"
+
 
 // Ceiling division macro
 #define CEIL(x, y) (1 + ((x - 1) / y))
@@ -40,44 +42,44 @@ Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 // Each blocks consists out of 2 Bytes (16 bits for the 4x4 space)
 const unsigned char blocks[BLOCKS_COUNT][2] = {
         /*
-         * # # . .
-         * # # . .
          * . . . .
+         * . # # .
+         * . # # .
          * . . . .
          */
-        { 0B00000000, 0B11001100 },
+        { 0B00000110, 0B01100000 },
 
         /*
-         * # . . .
-         * # . . .
-         * # . . .
-         * # . . .
-         */
-        { 0B00000000, 0B00001111 },
-
-        /*
-         * # # # .
          * . # . .
-         * . . . .
-         * . . . .
+         * . # . .
+         * . # . .
+         * . # . .
          */
-        { 0B00001000, 0B11001000 },
+        { 0B00000000, 0B11110000 },
 
         /*
-         * # # # #
-         * # . . .
          * . . . .
+         * . # # #
+         * . . # .
          * . . . .
          */
-        { 0B10001000, 0B11000000 },
+        { 0B01000110, 0B01000000 },
 
         /*
-         * # . . .
-         * # # . .
+         * . . . .
+         * . # # #
          * . # . .
          * . . . .
          */
-        { 0B00000000, 0B01101100 }
+        { 0B01000100, 0B01100000 },
+
+        /*
+         * . # . .
+         * . # # .
+         * . . # .
+         * . . . .
+         */
+        { 0B00000110, 0B11000000 },
 };
 
 //Calculate game array where one BIT is a 5x5 field (1px between each tile)
@@ -95,11 +97,16 @@ unsigned char game[GAME_H][GAME_BYTE_W] = {
         { 0B00000000, 0B00000000, 0B00000000 }
 };
 
-//Current tile
-int curBlock_id = -1;
-int curBlock_x;
-int curBlock_y;
-int curBlock_rot;
+// Current tile
+unsigned int curBlock_id = -1;
+unsigned int curBlock_x;
+unsigned int curBlock_y;
+unsigned int curBlock_rot;
+
+// Timer for game loop
+unsigned int timer;
+
+bool drawChange = false;
 
 void generateCurBlock(){
     curBlock_id = randomBlock();
@@ -107,7 +114,26 @@ void generateCurBlock(){
     curBlock_y = 3;
     curBlock_rot = 0;
 
-    setBlock(curBlock_id, curBlock_x, curBlock_y, curBlock_rot);
+    setBlock(curBlock_id, curBlock_x, curBlock_y, curBlock_rot, true);
+}
+
+void rotateCurBlock(){
+    int newRotation = curBlock_rot + 1;
+    if(newRotation == 4){
+        newRotation = 0;
+    }
+
+    setBlockWithoutDrawing(curBlock_id, curBlock_x, curBlock_y, curBlock_rot, false);
+    if(isSpaceForBlock(curBlock_id, curBlock_x, curBlock_y, newRotation)) {
+        setBlock(curBlock_id, curBlock_x, curBlock_y, curBlock_rot, false);
+
+        curBlock_rot = newRotation;
+        setBlock(curBlock_id, curBlock_x, curBlock_y, curBlock_rot, true);
+    }
+    else {
+        setBlockWithoutDrawing(curBlock_id, curBlock_x, curBlock_y, curBlock_rot, true);
+        Serial.println("NO ROTATION ALLOWED!");
+    }
 }
 
 void moveCurBlock(int vel_x, int vel_y){
@@ -117,14 +143,19 @@ void moveCurBlock(int vel_x, int vel_y){
     int futurePos_y = curBlock_y + vel_y;
 
     setBlockWithoutDrawing(curBlock_id, curBlock_x, curBlock_y, curBlock_rot, false);
-    if(isSpaceForBlock(curBlock_id, futurePos_x, futurePos_y)){
-        setBlock(curBlock_id, futurePos_x, futurePos_y, curBlock_rot, true, curBlock_x, curBlock_y);
+    if(isSpaceForBlock(curBlock_id, futurePos_x, futurePos_y, curBlock_rot)){
+        setBlock(curBlock_id, curBlock_x, curBlock_y, curBlock_rot, false);
+        setBlock(curBlock_id, futurePos_x, futurePos_y, curBlock_rot, true);
         curBlock_x = futurePos_x;
         curBlock_y = futurePos_y;
     }
     else {
         setBlockWithoutDrawing(curBlock_id, curBlock_x, curBlock_y, curBlock_rot, true);
-        curBlock_id = -1;
+
+        // Only if the block moved downwards it will be stopped
+        if(vel_x != 0){
+            curBlock_id = -1;
+        }
     }
 }
 
@@ -133,12 +164,18 @@ void setBlockWithoutDrawing(int id, int pos_x, int pos_y, int rot, bool state){
         unsigned char b = blocks[id][i];
 
         for(int bi=7;bi>=0;bi--){
-            int b_offx = bi % 4;
-            int b_offy = bi / 4 + i * 2;
+            int b_off_x = bi % 4;
+            int b_off_y = bi / 4 + i * 2;
 
             if(b & 1){
-                int cur_x = pos_x + b_offx;
-                int cur_y = pos_y + b_offy;
+                for(int r=0;r<rot;r++){
+                    int tmp = b_off_x;
+                    b_off_x = 3 - b_off_y;
+                    b_off_y = tmp;
+                }
+
+                int cur_x = pos_x + b_off_x;
+                int cur_y = pos_y + b_off_y;
 
                 if(cur_x < 0 || cur_y < 0 || cur_x >= GAME_W || cur_y >= GAME_H) continue;
 
@@ -152,17 +189,23 @@ void setBlockWithoutDrawing(int id, int pos_x, int pos_y, int rot, bool state){
     }
 }
 
-bool isSpaceForBlock(int id, int pos_x, int pos_y){
+bool isSpaceForBlock(int id, int pos_x, int pos_y, int rot){
     for(int i=0;i<2;i++){
         unsigned char b = blocks[id][i];
 
         for(int bi=7;bi>=0;bi--){
-            int b_offx = bi % 4;
-            int b_offy = bi / 4 + i * 2;
+            int b_off_x = bi % 4;
+            int b_off_y = bi / 4 + i * 2;
 
             if(b & 1){
-                int cur_x = pos_x + b_offx;
-                int cur_y = pos_y + b_offy;
+                for(int r=0;r<rot;r++){
+                    int tmp = b_off_x;
+                    b_off_x = 3 - b_off_y;
+                    b_off_y = tmp;
+                }
+
+                int cur_x = pos_x + b_off_x;
+                int cur_y = pos_y + b_off_y;
 
                 if(cur_x < 0 || cur_y < 0 || cur_x >= GAME_W || cur_y >= GAME_H) {
                     return false;
@@ -182,11 +225,7 @@ bool isSpaceForBlock(int id, int pos_x, int pos_y){
     return true;
 }
 
-void setBlock(int id, int pos_x, int pos_y, int rot){
-    setBlock(id, pos_x, pos_y, rot, false, 0, 0);
-}
-
-void setBlock(int id, int pos_x, int pos_y, int rot, bool removeOld, int pos_x_old, int pos_y_old){
+void setBlock(int id, int pos_x, int pos_y, int rot, bool state){
     for(int i=0;i<2;i++){
         unsigned char b = blocks[id][i];
 
@@ -195,11 +234,13 @@ void setBlock(int id, int pos_x, int pos_y, int rot, bool removeOld, int pos_x_o
             int b_off_y = bi / 4 + i * 2;
 
             if(b & 1){
-                if(removeOld){
-                    setTile(pos_x_old + b_off_x, pos_y_old + b_off_y, false, true);
+                for(int r=0;r<rot;r++){
+                    int tmp = b_off_x;
+                    b_off_x = 3 - b_off_y;
+                    b_off_y = tmp;
                 }
 
-                setTile(pos_x + b_off_x, pos_y + b_off_y, true, true);
+                setTile(pos_x + b_off_x, pos_y + b_off_y, state, true);
             }
 
             b = b >> 1;
@@ -212,6 +253,7 @@ void setBlock(int id, int pos_x, int pos_y, int rot, bool removeOld, int pos_x_o
 // Draws a tile defined by the TILE_SIZE at a position (posx, posy)
 void drawTile(int x, int y, bool state){
     display.fillRect(GAME_X + x * (TILE_SIZE + 1), GAME_Y + y * (TILE_SIZE + 1), TILE_SIZE, TILE_SIZE, state ? WHITE : BLACK);
+    drawChange = true;
 }
 
 void setTile(int x, int y, bool state, bool draw){
@@ -243,6 +285,17 @@ bool getTile(int x, int y){
     return b & posByte;
 }
 
+/* ---- [RANDOM BLOCK GENERATION] ----
+ * To select a random Block we:
+ *
+ * 1. Read from an output-pin which is not connected to anything
+ * 2. Module that read number by the amount of possible blocks to get a value between 0 - (BLOCKS_COUNT-1)
+ * 3. A little check so that 2 same blocks do not spawn as often in succession
+ * 3.1. Check if randomBlock was already called and if lastRandomBlock would be the same as the new one
+ * 3.2. Read another random value from the unconnected output pin
+ * 3.3. check if that new random number 'rr' is uneven
+ * 3.4. if it is: raise the id by one and set it to zero if it exceeds the possible values
+ */
 unsigned char lastRandomBlock = BLOCKS_COUNT;
 int randomBlock(){
     int r = analogRead(OUT_UNCONNECTED);
@@ -276,16 +329,16 @@ void setup() {
     }
 
     Serial.println("--------------");
-//    Serial.print("GAME_X: ");
-//    Serial.println(GAME_X);
-//    Serial.print("GAME_Y: ");
-//    Serial.println(GAME_Y);
-//    Serial.print("GAME_W: ");
-//    Serial.println(GAME_W);
-//    Serial.print("GAME_H: ");
-//    Serial.println(GAME_H);
-//    Serial.print("GAME_BYTE_W: ");
-//    Serial.println(GAME_BYTE_W);
+    Serial.print("GAME_X: ");
+    Serial.println(GAME_X);
+    Serial.print("GAME_Y: ");
+    Serial.println(GAME_Y);
+    Serial.print("GAME_W: ");
+    Serial.println(GAME_W);
+    Serial.print("GAME_H: ");
+    Serial.println(GAME_H);
+    Serial.print("GAME_BYTE_W: ");
+    Serial.println(GAME_BYTE_W);
 
     // Clear the buffer
     display.clearDisplay();
@@ -296,11 +349,11 @@ void setup() {
 
 
     generateCurBlock();
+    timer = millis();
 }
 
 // Draws the border around the space where the game is played
 void drawBorder(){
-
     display.setRotation(3);
     display.setTextSize(1);
     display.setTextColor(WHITE);
@@ -316,43 +369,52 @@ void drawBorder(){
     display.display();
 }
 
-// Draws the actual game state from the game array
+// Displays new changes
 void drawGame(){
-//    for(int x=0;x<GAME_BYTE_W;x++) {
-//        for (int y=0;y<GAME_H;y++) {
-//            unsigned char b = game[y][x];
-//
-//            for (int bi = 7; bi >= 0; bi--) {
-//                if (b & 1) {
-//                    drawTile(x * 8 + bi, y);
-//                }
-//
-//                b = b >> 1;
-//
-//                if (b == 0) break;
-//            }
-//        }
-//    }
-
-    display.display();
+    if(drawChange) {
+        drawChange = false;
+        display.display();
+    }
 }
 
 // ################# LOOP METHOD #################
 void loop() {
     if(curBlock_id != -1){
-        // Moving current block down
-        moveCurBlock(1, 0);
+        dpad::setState();
 
-        if(curBlock_id == -1){
-            generateCurBlock();
+        if(dpad::isLeft()){
+            moveCurBlock(0, 1);
+        }
+        else if(dpad::isRight()){
+            moveCurBlock(0, -1);
+        }
+        else if(dpad::isDown()){
+            moveCurBlock(1, 0);
+
+            drawGame();
+            delay(200);
+            return;
+        }
+        else if(dpad::isRotate()){
+            rotateCurBlock();
+        }
+
+        int now = millis();
+
+        if(now - timer >= 1000) {
+            timer = now;
+
+            // Moving current block down
+            moveCurBlock(1, 0);
         }
     }
-    else {
+
+    if(curBlock_id == -1) {
         generateCurBlock();
     }
 
     drawGame();
-    delay(1000);
+    delay(100);
 }
 
 
@@ -390,4 +452,31 @@ void printByte(unsigned char b){
         if(b == 0) break;
     }
     Serial.println("]");
+}
+
+void printGame(){
+
+    Serial.println();
+    Serial.println("##########");
+
+    for(int y=0;y<GAME_H;y++){
+        for(int x=0;x<GAME_BYTE_W;x++){
+            unsigned char b = game[y][x];
+
+            Serial.print("[");
+            for(int i=0;i<8;i++){
+                if(b & 1){
+                    Serial.print("1");
+                }
+                else {
+                    Serial.print("0");
+                }
+
+                b = b >> 1;
+            }
+            Serial.print("]");
+        }
+
+        Serial.println();
+    }
 }
