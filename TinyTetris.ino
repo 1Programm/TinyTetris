@@ -97,7 +97,16 @@ unsigned char game[GAME_H][GAME_BYTE_W] = {
         { 0B00000000, 0B00000000, 0B00000000 }
 };
 
+//0 = Title, 1 = Game, 2 = Dead, 3 = Options, 4 = Credits
+unsigned short game_state = 0;
+unsigned short state_title_option;
+unsigned short state_dead_option;
+unsigned short state_options_option;
+bool option_music = false;
+bool option_speedup = false;
 unsigned int score;
+
+// --- In game globals: ---
 
 // Current tile
 unsigned int curBlock_id = -1;
@@ -106,17 +115,253 @@ unsigned int curBlock_y;
 unsigned int curBlock_rot;
 
 // Timer for game loop
+unsigned int timer_wait;
 unsigned int timer;
 
 bool drawChange = false;
 
+void changeStateTitle(){
+    game_state = 0;
+    state_title_option = 0;
+    drawStateTitle();
+}
+
+void drawStateTitle(){
+    display.clearDisplay();
+    drawUiBorder();
+
+    display.setRotation(3);
+    display.setTextSize(1);
+    display.setTextColor(WHITE);
+
+    display.setCursor(4, 10);
+    display.println("Tiny");
+    display.setCursor(4, 20);
+    display.println("Tetris");
+    display.drawLine(1, 29, SCREEN_HEIGHT - 1, 29, WHITE);
+
+    if(state_title_option == 0) {
+        display.setCursor(4, 40);
+        display.println("> Start");
+        display.setCursor(3, 50);
+        display.println("  Options");
+        display.setCursor(3, 60);
+        display.println("  Credits");
+    }
+    else if(state_title_option == 1) {
+        display.setCursor(3, 40);
+        display.println("  Start");
+        display.setCursor(4, 50);
+        display.println("> Options");
+        display.setCursor(3, 60);
+        display.println("  Credits");
+    }
+    else if(state_title_option == 2) {
+        display.setCursor(3, 40);
+        display.println("  Start");
+        display.setCursor(3, 50);
+        display.println("  Options");
+        display.setCursor(4, 60);
+        display.println("> Credits");
+    }
+
+    display.setRotation(0);
+    display.display();
+}
+
+void changeStateGame(){
+    display.clearDisplay();
+
+    score = 0;
+    drawBorder();
+
+    generateCurBlock();
+    timer_wait = 1000;
+    timer = millis();
+    game_state = 1;
+}
+
+void changeStateDead(){
+    game_state = 2;
+    for(int x=0;x<GAME_W;x++){
+        for(int y=0;y<GAME_H;y++){
+            drawTile(x, y, false);
+        }
+
+        display.display();
+        delay(10);
+    }
+
+    //Clean up game board
+    for(int y=0;y<GAME_H;y++){
+        for(int i=0;i<GAME_BYTE_W;i++){
+            game[y][i] = 0B00000000;
+        }
+    }
+
+    state_dead_option = 0;
+    drawStateDead();
+}
+
+void drawStateDead(){
+    display.clearDisplay();
+    drawUiBorder();
+
+    display.setRotation(3);
+    display.setTextSize(1);
+    display.setTextColor(WHITE);
+
+    display.setCursor(4, 10);
+    display.println("GAME OVER");
+
+    display.drawLine(1, 19, SCREEN_HEIGHT - 2, 19, WHITE);
+
+    display.setCursor(4, 30);
+    display.println("Score: ");
+    display.setCursor(4, 40);
+    display.println(score);
+
+    if(state_dead_option == 0) {
+        display.setCursor(4, SCREEN_WIDTH - 26);
+        display.println("> Restart");
+        display.setCursor(3, SCREEN_WIDTH - 16);
+        display.println("  Title");
+    }
+    else if(state_dead_option == 1){
+        display.setCursor(3, SCREEN_WIDTH - 26);
+        display.println("  Restart");
+        display.setCursor(4, SCREEN_WIDTH - 16);
+        display.println("> Title");
+    }
+
+    display.setRotation(0);
+    display.display();
+}
+
+void changeStateOptions(){
+    game_state = 3;
+    state_options_option = 0;
+
+    drawStateOptions();
+}
+
+void drawStateOptions(){
+    display.clearDisplay();
+    drawUiBorder();
+
+    display.setRotation(3);
+    display.setTextSize(1);
+    display.setTextColor(WHITE);
+
+    display.setCursor(4, 10);
+    display.println("Options");
+    display.drawLine(1, 19, SCREEN_HEIGHT - 1, 19, WHITE);
+
+    if(state_options_option == 0) {
+        display.setCursor(4, 30);
+        display.println("> Music:");
+        display.setCursor(4, 40);
+        if(option_music){ display.println("  [On ]"); }
+        else { display.println("  [Off]"); }
+
+        display.setCursor(3, 50);
+        display.println("  Speedup:");
+        display.setCursor(3, 60);
+        if(option_speedup){ display.println("  [On ]"); }
+        else { display.println("  [Off]"); }
+
+        display.setCursor(3, SCREEN_WIDTH - 16);
+        display.println("  Back");
+    }
+    else if(state_options_option == 1){
+        display.setCursor(3, 30);
+        display.println("  Music:");
+        display.setCursor(3, 40);
+        if(option_music){ display.println("  [On ]"); }
+        else { display.println("  [Off]"); }
+
+        display.setCursor(4, 50);
+        display.println("> Speedup:");
+        display.setCursor(4, 60);
+        if(option_speedup){ display.println("  [On ]"); }
+        else { display.println("  [Off]"); }
+
+        display.setCursor(3, SCREEN_WIDTH - 16);
+        display.println("  Back");
+    }
+    else if(state_options_option == 2){
+        display.setCursor(3, 30);
+        display.println("  Music:");
+        display.setCursor(3, 40);
+        if(option_music){ display.println("  [On ]"); }
+        else { display.println("  [Off]"); }
+
+        display.setCursor(3, 50);
+        display.println("  Speedup:");
+        display.setCursor(3, 60);
+        if(option_speedup){ display.println("  [On ]"); }
+        else { display.println("  [Off]"); }
+
+        display.setCursor(4, SCREEN_WIDTH - 16);
+        display.println("> Back");
+    }
+
+    display.setRotation(0);
+    display.display();
+}
+
+void changeStateCredits(){
+    game_state = 4;
+    drawStateCredits();
+}
+
+void drawStateCredits(){
+    display.clearDisplay();
+    drawUiBorder();
+
+    display.setRotation(3);
+    display.setTextSize(1);
+    display.setTextColor(WHITE);
+
+    display.setCursor(4, 10);
+    display.println("Credits");
+    display.drawLine(1, 19, SCREEN_HEIGHT - 1, 19, WHITE);
+
+    display.setCursor(3, 30);
+    display.println("Idea from:");
+    display.setCursor(3, 40);
+    display.println("TinyTetris");
+    display.setCursor(3, 50);
+    display.println("by:");
+    display.setCursor(3, 60);
+    display.println("AJRussell");
+
+    display.setCursor(4, SCREEN_WIDTH - 16);
+    display.println("> Back");
+
+    display.setRotation(0);
+    display.display();
+}
+
+void drawUiBorder(){
+    display.drawRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, WHITE);
+}
+
+
 void generateCurBlock(){
     curBlock_id = randomBlock();
-    curBlock_x = 0;
+    curBlock_x = -2;
     curBlock_y = 3;
     curBlock_rot = 0;
 
-    setBlock(curBlock_id, curBlock_x, curBlock_y, curBlock_rot, true);
+
+    if(!isSpaceForBlock(curBlock_id, curBlock_x, curBlock_y, curBlock_rot)) {
+        curBlock_id = -1;
+        changeStateDead();
+    }
+    else {
+        setBlock(curBlock_id, curBlock_x, curBlock_y, curBlock_rot, true);
+    }
 }
 
 void rotateCurBlock(){
@@ -180,9 +425,6 @@ void checkFullLine(){
         }
 
         if(isFull){
-            Serial.print("Line [");
-            Serial.print(x);
-            Serial.println("] is full!");
             scoreFullLine(x);
         }
     }
@@ -207,6 +449,13 @@ void scoreFullLine(int x){
     }
 
     score += 1000;
+
+    if(option_speedup){
+        if(timer_wait > 200){
+            timer_wait -= 20;
+        }
+    }
+
     drawBorder();
 }
 
@@ -258,12 +507,14 @@ bool isSpaceForBlock(int id, int pos_x, int pos_y, int rot){
                 int cur_x = pos_x + b_off_x;
                 int cur_y = pos_y + b_off_y;
 
-                if(cur_x < 0 || cur_y < 0 || cur_x >= GAME_W || cur_y >= GAME_H) {
-                    return false;
-                }
+                if(cur_x >= 0) {
+                    if (/*cur_x < 0 ||*/ cur_y < 0 || cur_x >= GAME_W || cur_y >= GAME_H) {
+                        return false;
+                    }
 
-                if(getTile(cur_x, cur_y)){
-                    return false;
+                    if (getTile(cur_x, cur_y)) {
+                        return false;
+                    }
                 }
             }
 
@@ -308,6 +559,8 @@ void drawTile(int x, int y, bool state){
 }
 
 void setTile(int x, int y, bool state, bool draw){
+    if(x < 0) return;
+
     int ix = x / 8;
     int rx = x % 8;
 
@@ -385,6 +638,8 @@ void setup() {
         for(;;); // Don't proceed, loop forever
     }
 
+    display.clearDisplay();
+
     Serial.println("--------------");
     Serial.print("GAME_X: ");
     Serial.println(GAME_X);
@@ -397,16 +652,7 @@ void setup() {
     Serial.print("GAME_BYTE_W: ");
     Serial.println(GAME_BYTE_W);
 
-    // Clear the buffer
-    display.clearDisplay();
-    display.display();
-
-    delay(100);
-    drawBorder();
-
-
-    generateCurBlock();
-    timer = millis();
+    changeStateTitle();
 }
 
 // Draws the border around the space where the game is played
@@ -438,6 +684,60 @@ void drawGame(){
 
 // ################# LOOP METHOD #################
 void loop() {
+    if(game_state == 0){
+        loopTitle();
+    }
+    else if(game_state == 1){
+        loopGame();
+    }
+    else if(game_state == 2){
+        loopDead();
+    }
+    else if(game_state == 3){
+        loopOptions();
+    }
+    else if(game_state == 4){
+        loopCredits();
+    }
+}
+
+void loopTitle(){
+    dpad::setState();
+
+    if(dpad::isUp()){
+        if(state_title_option == 0) {
+            state_title_option = 2;
+        }
+        else {
+            state_title_option--;
+        }
+
+        drawStateTitle();
+        delay(200);
+    }
+    else if(dpad::isDown()){
+        state_title_option++;
+        if(state_title_option == 3) state_title_option = 0;
+        drawStateTitle();
+        delay(200);
+    }
+    else if(dpad::isRotate()){
+        if(state_title_option == 0) {
+            changeStateGame();
+            delay(1000);
+        }
+        else if(state_title_option == 1) {
+            changeStateOptions();
+            delay(1000);
+        }
+        else if(state_title_option == 2) {
+            changeStateCredits();
+            delay(1000);
+        }
+    }
+}
+
+void loopGame(){
     if(curBlock_id != -1){
         dpad::setState();
 
@@ -451,7 +751,7 @@ void loop() {
             moveCurBlock(1, 0);
 
             drawGame();
-            delay(180);
+            delay(150);
             return;
         }
         else if(dpad::isRotate()){
@@ -460,7 +760,7 @@ void loop() {
 
         int now = millis();
 
-        if(now - timer >= 1000) {
+        if(now - timer >= timer_wait) {
             timer = now;
 
             // Moving current block down
@@ -476,6 +776,82 @@ void loop() {
     delay(100);
 }
 
+void loopDead(){
+    dpad::setState();
+
+    if(dpad::isUp()){
+        if(state_dead_option == 0) {
+            state_dead_option = 1;
+        }
+        else {
+            state_dead_option--;
+        }
+        drawStateDead();
+        delay(200);
+    }
+    else if(dpad::isDown()){
+        state_dead_option++;
+        if(state_dead_option == 2) state_dead_option = 0;
+        drawStateDead();
+        delay(200);
+    }
+    else if(dpad::isRotate()){
+        if(state_dead_option == 0) {
+            changeStateGame();
+            delay(1000);
+        }
+        else if(state_dead_option == 1){
+            changeStateTitle();
+            delay(1000);
+        }
+    }
+}
+
+void loopOptions(){
+    dpad::setState();
+
+    if(dpad::isUp()){
+        if(state_options_option == 0) {
+            state_options_option = 2;
+        }
+        else {
+            state_options_option--;
+        }
+        drawStateOptions();
+        delay(200);
+    }
+    else if(dpad::isDown()){
+        state_options_option++;
+        if(state_options_option == 3) state_options_option = 0;
+        drawStateOptions();
+        delay(200);
+    }
+    else if(dpad::isRotate()){
+        if(state_options_option == 0) {
+            option_music = !option_music;
+            drawStateOptions();
+            delay(200);
+        }
+        else if(state_options_option == 1){
+            option_speedup = !option_speedup;
+            drawStateOptions();
+            delay(200);
+        }
+        else if(state_options_option == 2){
+            changeStateTitle();
+            delay(1000);
+        }
+    }
+}
+
+void loopCredits(){
+    dpad::setState();
+
+    if(dpad::isRotate()){
+        changeStateTitle();
+        delay(1000);
+    }
+}
 
 
 
