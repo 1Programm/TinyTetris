@@ -97,6 +97,8 @@ unsigned char game[GAME_H][GAME_BYTE_W] = {
         { 0B00000000, 0B00000000, 0B00000000 }
 };
 
+unsigned int score;
+
 // Current tile
 unsigned int curBlock_id = -1;
 unsigned int curBlock_x;
@@ -132,7 +134,6 @@ void rotateCurBlock(){
     }
     else {
         setBlockWithoutDrawing(curBlock_id, curBlock_x, curBlock_y, curBlock_rot, true);
-        Serial.println("NO ROTATION ALLOWED!");
     }
 }
 
@@ -155,8 +156,58 @@ void moveCurBlock(int vel_x, int vel_y){
         // Only if the block moved downwards it will be stopped
         if(vel_x != 0){
             curBlock_id = -1;
+            checkFullLine();
         }
     }
+}
+
+void checkFullLine(){
+    for(int ox=0;ox<4;ox++) {
+        int x = curBlock_x + ox;
+        bool isFull = true;
+
+        for (int y=0;y<GAME_H;y++){
+            int ix = x / 8;
+            int rx = x % 8;
+
+            unsigned char b = game[y][ix];
+            unsigned char posByte = 0B10000000 >> rx;
+
+            if(!(b & posByte)){
+                isFull = false;
+                break;
+            }
+        }
+
+        if(isFull){
+            Serial.print("Line [");
+            Serial.print(x);
+            Serial.println("] is full!");
+            scoreFullLine(x);
+        }
+    }
+}
+
+void scoreFullLine(int x){
+    for (int y=0;y<GAME_H;y++){
+        drawTile(x, y, false);
+        display.display();
+        delay(30);
+    }
+
+    for(int i=x;i>0;i--){
+        for (int y=0;y<GAME_H;y++){
+            bool t = getTile(i - 1, y);
+            setTile(i, y, t, true);
+        }
+    }
+
+    for (int y=0;y<GAME_H;y++){
+        setTile(0, y, false, true);
+    }
+
+    score += 1000;
+    drawBorder();
 }
 
 void setBlockWithoutDrawing(int id, int pos_x, int pos_y, int rot, bool state){
@@ -317,6 +368,12 @@ int randomBlock(){
 }
 
 
+
+
+
+
+
+
 // ################# SETUP METHOD #################
 void setup() {
     Serial.begin(9600);
@@ -354,11 +411,13 @@ void setup() {
 
 // Draws the border around the space where the game is played
 void drawBorder(){
+    display.fillRect(0, 0, GAME_X, SCREEN_HEIGHT, BLACK);
+
     display.setRotation(3);
     display.setTextSize(1);
     display.setTextColor(WHITE);
     display.setCursor(6,0);
-    display.println("130920");
+    display.println(score);
     display.setRotation(0);
 
     display.drawLine(0, 0, SCREEN_WIDTH-1, 0, WHITE);
@@ -392,7 +451,7 @@ void loop() {
             moveCurBlock(1, 0);
 
             drawGame();
-            delay(200);
+            delay(180);
             return;
         }
         else if(dpad::isRotate()){
