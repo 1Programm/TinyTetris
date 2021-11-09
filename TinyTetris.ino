@@ -704,7 +704,7 @@ void setup() {
         for(;;); // Don't proceed, loop forever
     }
 
-//    display.clearDisplay();
+    display.clearDisplay();
 
     Serial.println(F("--------------"));
     Serial.print(F("GAME_X: "));

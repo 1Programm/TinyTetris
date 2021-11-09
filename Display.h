@@ -117,9 +117,9 @@ public:
         OLEDCommand(7);
         OLEDCommand(OLED_SETPAGE_ADDR);
         OLEDCommand(0);
-        OLEDCommand(63);
+        OLEDCommand(127);
 
-        for(int i=0;i<(8 * 128);i++){
+        for(int i=0;i<(16 * 128);i++){
             OLEDData(0x00);
         }
     }
@@ -132,9 +132,9 @@ public:
         OLEDCommand(7);
         OLEDCommand(OLED_SETPAGE_ADDR);
         OLEDCommand(0);
-        OLEDCommand(63);
+        OLEDCommand(127);
 
-        for(int i=0;i<(8 * 128);i++){
+        for(int i=0;i<(16 * 128);i++){
             OLEDData(0xff);
         }
     }
@@ -150,7 +150,7 @@ public:
         OLEDCommand(63);
 
         OLEDData(0xff);
-        OLEDData(0xff);
+        OLEDData(0x00);
         OLEDData(0xff);
 //        for(int i=0;i<(8 * 128);i++){
 //            OLEDData(0xff);
