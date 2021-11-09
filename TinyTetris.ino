@@ -1,9 +1,11 @@
 #include <SPI.h>
 #include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
+#include <EEPROM.h>
+//#include <Adafruit_GFX.h>
+//#include <Adafruit_SSD1306.h>
 
 #include "dpad.h"
+#include "Display.h"
 
 
 // Ceiling division macro
@@ -21,6 +23,9 @@
 // RANDOM NUMBER GENERATION
 #define OUT_UNCONNECTED 1       // Must be an output which is unconnected as it will generate random noise on read
 
+// MEMORY ADDRESS
+#define MEM_SCORE_SET 0         //WIDTH: 1 byte
+#define MEM_SCORE 1             //WIDTH: 3 byte
 
 // Game constants
 #define BLOCKS_COUNT 5
@@ -36,7 +41,8 @@
 
 
 // Init display
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+//Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+Display display(SCREEN_WIDTH, SCREEN_HEIGHT);
 
 // The different blocks as byte arrays.
 // Each blocks consists out of 2 Bytes (16 bits for the 4x4 space)
@@ -101,24 +107,31 @@ unsigned char game[GAME_H][GAME_BYTE_W] = {
 unsigned short game_state = 0;
 unsigned short state_title_option;
 unsigned short state_dead_option;
+bool dead_isNewHighScore = false;
+unsigned long oldHighScore;
 unsigned short state_options_option;
 bool option_music = false;
 bool option_speedup = false;
-unsigned int score;
+unsigned long score;
 
 // --- In game globals: ---
 
 // Current tile
-unsigned int curBlock_id = -1;
-unsigned int curBlock_x;
-unsigned int curBlock_y;
-unsigned int curBlock_rot;
+unsigned short curBlock_id = -1;
+unsigned short curBlock_x;
+unsigned short curBlock_y;
+unsigned short curBlock_rot;
 
 // Timer for game loop
 unsigned int timer_wait;
 unsigned int timer;
 
 bool drawChange = false;
+
+
+
+
+// ################# UI METHODS #################
 
 void changeStateTitle(){
     game_state = 0;
@@ -199,6 +212,22 @@ void changeStateDead(){
         }
     }
 
+    unsigned char highscore_set = EEPROM.read(MEM_SCORE_SET);
+
+    //If set = 255 then the highscore was never set before
+    if(highscore_set == 255){
+        dead_isNewHighScore = true;
+        writeHighScore(score);
+        EEPROM.write(MEM_SCORE_SET, 0);
+    }
+    else {
+        oldHighScore = readHighScore();
+        if (score > oldHighScore) {
+            dead_isNewHighScore = true;
+            writeHighScore(score);
+        }
+    }
+
     state_dead_option = 0;
     drawStateDead();
 }
@@ -211,23 +240,39 @@ void drawStateDead(){
     display.setTextSize(1);
     display.setTextColor(WHITE);
 
-    display.setCursor(4, 10);
-    display.println("GAME OVER");
+    if(dead_isNewHighScore){
+        display.setCursor(4, 10);
+        display.println("HIGH SCORE!");
 
-    display.drawLine(1, 19, SCREEN_HEIGHT - 2, 19, WHITE);
+        display.drawLine(1, 19, SCREEN_HEIGHT - 2, 19, WHITE);
 
-    display.setCursor(4, 30);
-    display.println("Score: ");
-    display.setCursor(4, 40);
-    display.println(score);
+        display.setCursor(4, 30);
+        display.println("Score: ");
+        display.setCursor(4, 40);
+        display.println(score);
+    }
+    else {
+        display.setCursor(4, 10);
+        display.println("GAME OVER");
 
-    if(state_dead_option == 0) {
+        display.drawLine(1, 19, SCREEN_HEIGHT - 2, 19, WHITE);
+
+        display.setCursor(4, 30);
+        display.println("Score: ");
+        display.setCursor(4, 40);
+        display.println(score);
+        display.setCursor(4, 55);
+        display.println("High: ");
+        display.setCursor(3, 65);
+        display.println(oldHighScore);
+    }
+
+    if (state_dead_option == 0) {
         display.setCursor(4, SCREEN_WIDTH - 26);
         display.println("> Restart");
         display.setCursor(3, SCREEN_WIDTH - 16);
         display.println("  Title");
-    }
-    else if(state_dead_option == 1){
+    } else if (state_dead_option == 1) {
         display.setCursor(3, SCREEN_WIDTH - 26);
         display.println("  Restart");
         display.setCursor(4, SCREEN_WIDTH - 16);
@@ -347,6 +392,26 @@ void drawUiBorder(){
     display.drawRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, WHITE);
 }
 
+unsigned long readHighScore(){
+    long highScore = EEPROM.read(MEM_SCORE);
+    highScore = (highScore << 8) + EEPROM.read(MEM_SCORE + 1);
+    highScore = (highScore << 8) + EEPROM.read(MEM_SCORE + 2);
+
+    return highScore;
+}
+
+void writeHighScore(long highScore){
+    unsigned char byte1 = highScore & 255;
+    unsigned char byte2 = (highScore >> 8) & 255;
+    unsigned char byte3 = (highScore >> 16) & 255;
+
+    //Reverse order so we can read it later more easily
+    EEPROM.write(MEM_SCORE + 2, byte1);
+    EEPROM.write(MEM_SCORE + 1, byte2);
+    EEPROM.write(MEM_SCORE + 0, byte3);
+}
+
+// ################# GAME METHODS #################
 
 void generateCurBlock(){
     curBlock_id = randomBlock();
@@ -628,6 +693,7 @@ int randomBlock(){
 
 
 // ################# SETUP METHOD #################
+
 void setup() {
     Serial.begin(9600);
     while (!Serial);
@@ -638,19 +704,32 @@ void setup() {
         for(;;); // Don't proceed, loop forever
     }
 
+//    display.clearDisplay();
+
+    Serial.println(F("--------------"));
+    Serial.print(F("GAME_X: "));
+    Serial.println(GAME_X);
+    Serial.print(F("GAME_Y: "));
+    Serial.println(GAME_Y);
+    Serial.print(F("GAME_W: "));
+    Serial.println(GAME_W);
+    Serial.print(F("GAME_H: "));
+    Serial.println(GAME_H);
+    Serial.print(F("GAME_BYTE_W: "));
+    Serial.println(GAME_BYTE_W);
+
+
+    display.fillDisplay();
+
+    delay(2000);
+
     display.clearDisplay();
 
-    Serial.println("--------------");
-    Serial.print("GAME_X: ");
-    Serial.println(GAME_X);
-    Serial.print("GAME_Y: ");
-    Serial.println(GAME_Y);
-    Serial.print("GAME_W: ");
-    Serial.println(GAME_W);
-    Serial.print("GAME_H: ");
-    Serial.println(GAME_H);
-    Serial.print("GAME_BYTE_W: ");
-    Serial.println(GAME_BYTE_W);
+    delay(2000);
+
+    display.test();
+
+    return;
 
     changeStateTitle();
 }
@@ -684,6 +763,7 @@ void drawGame(){
 
 // ################# LOOP METHOD #################
 void loop() {
+    return;
     if(game_state == 0){
         loopTitle();
     }
@@ -861,57 +941,57 @@ void loopCredits(){
 
 // TMP UTIL METHODS
 
-void printCurBlockInfo(){
-    Serial.println("Cur Block:");
-    Serial.print("ID: ");
-    Serial.println(curBlock_id);
-    Serial.print("X: ");
-    Serial.println(curBlock_x);
-    Serial.print("Y: ");
-    Serial.println(curBlock_y);
-//    Serial.print("Rot: ");
-//    Serial.println(curBlock_rot);
-}
-
-void printByte(unsigned char b){
-    Serial.print("Byte[");
-    while(true){
-        if(b & 1){
-            Serial.print("1");
-        }
-        else {
-            Serial.print("0");
-        }
-
-        b = b >> 1;
-        if(b == 0) break;
-    }
-    Serial.println("]");
-}
-
-void printGame(){
-
-    Serial.println();
-    Serial.println("##########");
-
-    for(int y=0;y<GAME_H;y++){
-        for(int x=0;x<GAME_BYTE_W;x++){
-            unsigned char b = game[y][x];
-
-            Serial.print("[");
-            for(int i=0;i<8;i++){
-                if(b & 1){
-                    Serial.print("1");
-                }
-                else {
-                    Serial.print("0");
-                }
-
-                b = b >> 1;
-            }
-            Serial.print("]");
-        }
-
-        Serial.println();
-    }
-}
+//void printCurBlockInfo(){
+//    Serial.println("Cur Block:");
+//    Serial.print("ID: ");
+//    Serial.println(curBlock_id);
+//    Serial.print("X: ");
+//    Serial.println(curBlock_x);
+//    Serial.print("Y: ");
+//    Serial.println(curBlock_y);
+////    Serial.print("Rot: ");
+////    Serial.println(curBlock_rot);
+//}
+//
+//void printByte(unsigned char b){
+//    Serial.print("Byte[");
+//    while(true){
+//        if(b & 1){
+//            Serial.print("1");
+//        }
+//        else {
+//            Serial.print("0");
+//        }
+//
+//        b = b >> 1;
+//        if(b == 0) break;
+//    }
+//    Serial.println("]");
+//}
+//
+//void printGame(){
+//
+//    Serial.println();
+//    Serial.println("##########");
+//
+//    for(int y=0;y<GAME_H;y++){
+//        for(int x=0;x<GAME_BYTE_W;x++){
+//            unsigned char b = game[y][x];
+//
+//            Serial.print("[");
+//            for(int i=0;i<8;i++){
+//                if(b & 1){
+//                    Serial.print("1");
+//                }
+//                else {
+//                    Serial.print("0");
+//                }
+//
+//                b = b >> 1;
+//            }
+//            Serial.print("]");
+//        }
+//
+//        Serial.println();
+//    }
+//}
