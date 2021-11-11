@@ -27,12 +27,12 @@
 #define OLED_SEGREMAPNORMAL                         0xA0
 #define OLED_SEGREMAPINV                            0xA1
 #define OLED_SETMULTIPLEX                           0xA8
-#define OLED_COMSCANINC                             0xC0
-#define OLED_COMSCANDEC                             0xC8
-#define OLED_SETDISPLAYOFFSET                       0xD3
+#define OLED_COMSCANINC                             0xC8
+#define OLED_COMSCANDEC                             0xC0
+#define OLED_SETDISPLAY_OFFSET                      0xD3
 #define OLED_SETCOMPINS                             0xDA
 
-#define OLED_SETDISPLAYCLOCKDIV                     0xD5
+#define OLED_SETDISPLAY_CLOCKDIV                     0xD5
 #define OLED_SETPRECHARGE                           0xD9
 #define OLED_SETVCOMDESELECT                        0xDB
 #define OLED_NOP                                    0xE3
@@ -61,13 +61,17 @@
  */
 
 
-#define WHITE 0x00
-#define BLACK 0xff
-#define SSD1306_SWITCHCAPVCC 0
+#define WHITE 0xff
+#define BLACK 0x00
+#define SCREEN_WIDTH  64         // OLED display width, in pixels
+#define SCREEN_HEIGHT 128        // OLED display height, in pixels
+#define SCREEN_BYTE_WIDTH (SCREEN_WIDTH / 8)
 
 class Display {
 private:
     char screenAddress;
+    unsigned char pixels[SCREEN_HEIGHT][SCREEN_BYTE_WIDTH];
+    unsigned char textColor = WHITE;
 
     void OLEDCommand(unsigned char command) {
         Wire.beginTransmission(screenAddress);
@@ -84,27 +88,44 @@ private:
     }
 
 public:
-    Display(int screen_w, int screen_h){
-
+    Display(int address){
+        screenAddress = address;
     }
 
-    bool begin(int a, char address){
-        screenAddress = address;
-
+    bool begin(){
         unsigned char initCommands[] = {
                 OLED_DISPLAY_OFF,
-                OLED_DISPLAY_ON,
                 OLED_DISPLAY_NORMAL,
+
+                OLED_SETMEMORY_MODE,
+                OLED_SETMEMORY_MODE_PAGE,
+
+                OLED_SEGREMAPINV,
+                OLED_SETMULTIPLEX,
+                0x3F,
+                OLED_COMSCANDEC,
+                OLED_SETDISPLAY_OFFSET,
+                0x00,
+
+                OLED_SETDISPLAY_CLOCKDIV,
+                0x80,
+                OLED_SETPRECHARGE,
+                0x22,
+                OLED_SETVCOMDESELECT,
+                0x20,
 
                 OLED_CHARGEPUMP,
                 OLED_CHARGEPUMP_ON,
 
-                OLED_DISPLAY_NORMAL
+                OLED_DISPLAY_ALL_ON_RESUME,
+                OLED_DISPLAY_ON,
         };
 
         for(int i=0;i<sizeof(initCommands);i++){
             OLEDCommand(initCommands[i]);
         }
+
+        clearDisplay();
 
         return true;
     }
@@ -122,6 +143,12 @@ public:
         for(int i=0;i<(16 * 128);i++){
             OLEDData(0x00);
         }
+
+        for(int y=0;y<SCREEN_HEIGHT;y++){
+            for(int x=0;x<SCREEN_BYTE_WIDTH;x++){
+                pixels[y][x] = 0x00;
+            }
+        }
     }
 
     void fillDisplay(){
@@ -137,9 +164,19 @@ public:
         for(int i=0;i<(16 * 128);i++){
             OLEDData(0xff);
         }
+
+        for(int y=0;y<SCREEN_HEIGHT;y++){
+            for(int x=0;x<SCREEN_BYTE_WIDTH;x++){
+                pixels[y][x] = 0xff;
+            }
+        }
     }
 
     void test(){
+        pixels[0][0] = 0B10000001;
+    }
+
+    void display(){
         OLEDCommand(OLED_SETMEMORY_MODE);
         OLEDCommand(OLED_SETMEMORY_MODE_VERTICAL);
         OLEDCommand(OLED_SETCOLUMN_ADDR);
@@ -147,21 +184,20 @@ public:
         OLEDCommand(7);
         OLEDCommand(OLED_SETPAGE_ADDR);
         OLEDCommand(0);
-        OLEDCommand(63);
+        OLEDCommand(127);
 
-        OLEDData(0xff);
-        OLEDData(0x00);
-        OLEDData(0xff);
-//        for(int i=0;i<(8 * 128);i++){
-//            OLEDData(0xff);
-//        }
+        for(int y=0;y<128;y++){
+            for(int x=0;x<8;x++){
+                OLEDData(pixels[y][x]);
+            }
+        }
     }
-
-    void display(){}
 
     void setRotation(int i){}
     void setTextSize(int i){}
-    void setTextColor(int c){}
+    void setTextColor(unsigned char c){
+        textColor = c;
+    }
     void setCursor(int x, int y){}
 
     void println(char const* s){}
@@ -175,10 +211,111 @@ public:
     void println(unsigned long s){}
     void print(unsigned long s){}
 
-    void drawLine(int x1, int y1, int x2, int y2, int c){}
-    void drawRect(int x, int y, int w, int h, int c){}
-    void fillRect(int x, int y, int w, int h, int c){}
+    void printStr(int x, int y, char const* str){
+        Serial.print("Str length: ");
+        Serial.println(strlen(str));
+        for(int i=0;i<strlen(str);i++){
+            Serial.println(str[i]);
+        }
+    }
 
+    void drawHorizontalLine(int x, int y, int x2, unsigned char c){
+        if(y < 0 || y >= SCREEN_HEIGHT) return;
+        if(x < 0 || x2 >= SCREEN_WIDTH) return;
+
+        int ix = x / 8;
+        int rx = x % 8;
+
+        int ix2 = x2 / 8;
+        int rx2 = x2 % 8;
+
+        if(rx != 0){
+            unsigned char b = pixels[y][ix];
+            unsigned char addB = 0xff;
+            unsigned char subB = 1;
+            for(int i=0;i<rx;i++){
+                subB *= 2;
+            }
+            addB -= (subB - 1);
+
+            if(c == WHITE){
+                pixels[y][ix] = b | addB;
+            }
+            else {
+                pixels[y][ix] = b & addB;
+            }
+        }
+        else {
+            pixels[y][ix] = c;
+        }
+
+        for(int i=ix+1;i<ix2;i++){
+            pixels[y][i] = c;
+        }
+
+        if(rx2 != 0){
+            unsigned char b = pixels[y][ix2];
+            unsigned char addB = 1;
+            for(int i=0;i<rx2;i++){
+                addB *= 2;
+            }
+            addB--;
+
+            if(c == WHITE){
+                pixels[y][ix2] = b | addB;
+            }
+            else {
+                pixels[y][ix2] = b & addB;
+            }
+        }
+    }
+
+    void drawVerticalLine(int x, int y, int y2, unsigned char c){
+        if(y < 0 || y2 >= SCREEN_HEIGHT) return;
+        if(x < 0 || x >= SCREEN_WIDTH) return;
+
+        int ix = x / 8;
+        int rx = x % 8;
+
+        unsigned char posByte = 0B00000001 << rx;
+
+        for(int i=y;i<y2;i++){
+            pixels[i][ix] |= posByte;
+        }
+    }
+
+    void drawRect(int x, int y, int w, int h, unsigned char c){
+        drawHorizontalLine(x, y, w, c);
+        drawHorizontalLine(x, y + h, w, c);
+        drawVerticalLine(x, y, h, c);
+        drawVerticalLine(x + w, y, h, c);
+    }
+
+    void fillRect(int x, int y, int w, int h, unsigned char c){
+        if(x < 0 || x + w >= SCREEN_WIDTH) return;
+        if(y < 0 || y + h >= SCREEN_HEIGHT) return;
+
+        for(int i=0;i<h;i++){
+            drawHorizontalLine(x, y + i, x + w, c);
+        }
+    }
+
+
+    void printByte(unsigned char b){
+        Serial.print(F("Byte["));
+        while(true){
+            if(b & 1){
+                Serial.print(F("1"));
+            }
+            else {
+                Serial.print(F("0"));
+            }
+
+            b = b >> 1;
+            if(b == 0) break;
+        }
+        Serial.println(F("]"));
+    }
 };
 
 #endif //TINYTETRIS_DISPLAY_H

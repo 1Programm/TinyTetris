@@ -1,8 +1,6 @@
 #include <SPI.h>
 #include <Wire.h>
 #include <EEPROM.h>
-//#include <Adafruit_GFX.h>
-//#include <Adafruit_SSD1306.h>
 
 #include "dpad.h"
 #include "Display.h"
@@ -11,10 +9,6 @@
 // Ceiling division macro
 #define CEIL(x, y) (1 + ((x - 1) / y))
 
-
-
-#define SCREEN_WIDTH 128        // OLED display width, in pixels
-#define SCREEN_HEIGHT 64        // OLED display height, in pixels
 
 // Declaration for an SSD1306 display connected to I2C (SDA, SCL pins)
 #define OLED_RESET     4        // Reset pin # (or -1 if sharing Arduino reset pin)
@@ -32,8 +26,8 @@
 #define TILE_SIZE 5 //How many pixels one tile is
 #define GAME_X 8
 #define GAME_Y 2
-#define GAME_W ((SCREEN_WIDTH - GAME_X) / (TILE_SIZE + 1))
-#define GAME_H ((SCREEN_HEIGHT - GAME_Y * 2) / (TILE_SIZE + 1))
+#define GAME_W ((SCREEN_HEIGHT - GAME_X) / (TILE_SIZE + 1))
+#define GAME_H ((SCREEN_WIDTH - GAME_Y * 2) / (TILE_SIZE + 1))
 
 // How many bytes to be used to capture the GAME_W
 // Constant used for the game array
@@ -42,7 +36,7 @@
 
 // Init display
 //Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
-Display display(SCREEN_WIDTH, SCREEN_HEIGHT);
+Display display(SCREEN_ADDRESS);
 
 // The different blocks as byte arrays.
 // Each blocks consists out of 2 Bytes (16 bits for the 4x4 space)
@@ -151,7 +145,7 @@ void drawStateTitle(){
     display.println("Tiny");
     display.setCursor(4, 20);
     display.println("Tetris");
-    display.drawLine(1, 29, SCREEN_HEIGHT - 1, 29, WHITE);
+    display.drawHorizontalLine(1, 29, SCREEN_HEIGHT - 1, WHITE);
 
     if(state_title_option == 0) {
         display.setCursor(4, 40);
@@ -244,7 +238,7 @@ void drawStateDead(){
         display.setCursor(4, 10);
         display.println("HIGH SCORE!");
 
-        display.drawLine(1, 19, SCREEN_HEIGHT - 2, 19, WHITE);
+        display.drawHorizontalLine(1, 19, SCREEN_HEIGHT - 2, WHITE);
 
         display.setCursor(4, 30);
         display.println("Score: ");
@@ -255,7 +249,7 @@ void drawStateDead(){
         display.setCursor(4, 10);
         display.println("GAME OVER");
 
-        display.drawLine(1, 19, SCREEN_HEIGHT - 2, 19, WHITE);
+        display.drawHorizontalLine(1, 19, SCREEN_HEIGHT - 2, WHITE);
 
         display.setCursor(4, 30);
         display.println("Score: ");
@@ -300,7 +294,7 @@ void drawStateOptions(){
 
     display.setCursor(4, 10);
     display.println("Options");
-    display.drawLine(1, 19, SCREEN_HEIGHT - 1, 19, WHITE);
+    display.drawHorizontalLine(1, 19, SCREEN_HEIGHT - 1, WHITE);
 
     if(state_options_option == 0) {
         display.setCursor(4, 30);
@@ -370,7 +364,7 @@ void drawStateCredits(){
 
     display.setCursor(4, 10);
     display.println("Credits");
-    display.drawLine(1, 19, SCREEN_HEIGHT - 1, 19, WHITE);
+    display.drawHorizontalLine(1, 19, SCREEN_HEIGHT - 1, WHITE);
 
     display.setCursor(3, 30);
     display.println("Idea from:");
@@ -699,12 +693,12 @@ void setup() {
     while (!Serial);
 
     // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-    if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) {
+    if(!display.begin()) {
         Serial.println(F("SSD1306 allocation failed"));
         for(;;); // Don't proceed, loop forever
     }
 
-    display.clearDisplay();
+//    display.clearDisplay();
 
     Serial.println(F("--------------"));
     Serial.print(F("GAME_X: "));
@@ -719,15 +713,15 @@ void setup() {
     Serial.println(GAME_BYTE_W);
 
 
-    display.fillDisplay();
+    display.drawRect(0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1, WHITE);
+    display.display();
 
-    delay(2000);
+    delay(1000);
 
-    display.clearDisplay();
+    display.fillRect(0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1, WHITE);
+    display.display();
 
-    delay(2000);
 
-    display.test();
 
     return;
 
@@ -745,10 +739,10 @@ void drawBorder(){
     display.println(score);
     display.setRotation(0);
 
-    display.drawLine(0, 0, SCREEN_WIDTH-1, 0, WHITE);
-    display.drawLine(0, SCREEN_HEIGHT-2, SCREEN_WIDTH-1, SCREEN_HEIGHT-2, WHITE);
-    display.drawLine(SCREEN_WIDTH-1, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-2, WHITE);
-    display.drawLine(GAME_X-1, 0, GAME_X-1, SCREEN_HEIGHT-2, WHITE);
+    display.drawHorizontalLine(0, 0, SCREEN_WIDTH-1, WHITE);
+    display.drawHorizontalLine(0, SCREEN_HEIGHT-2, SCREEN_WIDTH-1, WHITE);
+    display.drawVerticalLine(SCREEN_WIDTH-1, 0, SCREEN_HEIGHT-2, WHITE);
+    display.drawVerticalLine(GAME_X-1, 0, SCREEN_HEIGHT-2, WHITE);
 
     display.display();
 }
@@ -954,19 +948,19 @@ void loopCredits(){
 //}
 //
 //void printByte(unsigned char b){
-//    Serial.print("Byte[");
+//    Serial.print(F("Byte["));
 //    while(true){
 //        if(b & 1){
-//            Serial.print("1");
+//            Serial.print(F("1"));
 //        }
 //        else {
-//            Serial.print("0");
+//            Serial.print(F("0"));
 //        }
 //
 //        b = b >> 1;
 //        if(b == 0) break;
 //    }
-//    Serial.println("]");
+//    Serial.println(F("]"));
 //}
 //
 //void printGame(){
