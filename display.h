@@ -110,7 +110,7 @@ public:
         screenAddress = address;
     }
 
-    bool begin(){
+    void begin(){
         unsigned char initCommands[] = {
                 OLED_DISPLAY_OFF,
                 OLED_DISPLAY_NORMAL,
@@ -142,10 +142,6 @@ public:
         for(int i=0;i<sizeof(initCommands);i++){
             OLEDCommand(initCommands[i]);
         }
-
-        clearDisplay();
-
-        return true;
     }
 
     void clearDisplay(){
@@ -190,10 +186,6 @@ public:
         }
     }
 
-    void test(){
-        pixels[0][0] = 0B10000001;
-    }
-
     void display(){
         OLEDCommand(OLED_SETMEMORY_MODE);
         OLEDCommand(OLED_SETMEMORY_MODE_VERTICAL);
@@ -227,14 +219,14 @@ public:
     void println(unsigned long s){}
     void print(unsigned long s){}
 
-    void printText(int x, int y, int w, int h, unsigned char txt[6][5]){
-        for(int i=0;i<h;i++){
-            for(int o=0;o<w;o++){
-                unsigned char b = txt[i][o];
-                pixels[y + i][1 + o] = reverse(b);
-            }
-        }
-    }
+//    void printText(int x, int y, int w, int h, unsigned char txt[6][5]){
+//        for(int i=0;i<h;i++){
+//            for(int o=0;o<w;o++){
+//                unsigned char b = txt[i][o];
+//                pixels[y + i][1 + o] = reverse(b);
+//            }
+//        }
+//    }
 
     void drawStr(int x, int y, char const* str){
         for(int i=0;i<strlen(str);i++){
@@ -242,6 +234,23 @@ public:
             if(c != ' ') {
                 drawChar(x + i * 6, y, c);
             }
+        }
+    }
+
+    void drawStr(int x, int y, long num){
+        if(num == 0){
+            drawChar(x, y, '0');
+            return;
+        }
+
+        int i = 0;
+        while(num > 0) {
+            int r = num % 10;
+            char c = '0' + r;
+
+            drawChar(x + i * 6, y, c);
+
+            num |= 10;
         }
     }
 

@@ -137,42 +137,27 @@ void drawStateTitle(){
     display.clearDisplay();
     drawUiBorder();
 
-    display.setRotation(3);
-    display.setTextSize(1);
-    display.setTextColor(WHITE);
+    display.drawStr(5, 8, "TINY");
+    display.drawStr(5, 18, "TETRIS");
 
-    display.setCursor(4, 10);
-    display.println("Tiny");
-    display.setCursor(4, 20);
-    display.println("Tetris");
-    display.drawHorizontalLine(1, 29, SCREEN_HEIGHT - 1, WHITE);
+    display.drawHorizontalLine(1, 29, SCREEN_WIDTH - 1, WHITE);
 
     if(state_title_option == 0) {
-        display.setCursor(4, 40);
-        display.println("> Start");
-        display.setCursor(3, 50);
-        display.println("  Options");
-        display.setCursor(3, 60);
-        display.println("  Credits");
+        display.drawStr(6, 40, "> START");
+        display.drawStr(4, 50, "  OPTIONS");
+        display.drawStr(4, 60, "  CREDITS");
     }
     else if(state_title_option == 1) {
-        display.setCursor(3, 40);
-        display.println("  Start");
-        display.setCursor(4, 50);
-        display.println("> Options");
-        display.setCursor(3, 60);
-        display.println("  Credits");
+        display.drawStr(4, 40, "  START");
+        display.drawStr(6, 50, "> OPTIONS");
+        display.drawStr(4, 60, "  CREDITS");
     }
     else if(state_title_option == 2) {
-        display.setCursor(3, 40);
-        display.println("  Start");
-        display.setCursor(3, 50);
-        display.println("  Options");
-        display.setCursor(4, 60);
-        display.println("> Credits");
+        display.drawStr(4, 40, "  START");
+        display.drawStr(4, 50, "  OPTIONS");
+        display.drawStr(6, 60, "> CREDITS");
     }
 
-    display.setRotation(0);
     display.display();
 }
 
@@ -230,50 +215,29 @@ void drawStateDead(){
     display.clearDisplay();
     drawUiBorder();
 
-    display.setRotation(3);
-    display.setTextSize(1);
-    display.setTextColor(WHITE);
+    display.drawHorizontalLine(1, 19, SCREEN_WIDTH - 1, WHITE);
 
     if(dead_isNewHighScore){
-        display.setCursor(4, 10);
-        display.println("HIGH SCORE!");
-
-        display.drawHorizontalLine(1, 19, SCREEN_HEIGHT - 2, WHITE);
-
-        display.setCursor(4, 30);
-        display.println("Score: ");
-        display.setCursor(4, 40);
-        display.println(score);
+        display.drawStr(8, 8, "HIGH SCORE");
+        display.drawStr(4, 30, "Score:");
+        display.drawStr(4, 40, score);
     }
     else {
-        display.setCursor(4, 10);
-        display.println("GAME OVER");
-
-        display.drawHorizontalLine(1, 19, SCREEN_HEIGHT - 2, WHITE);
-
-        display.setCursor(4, 30);
-        display.println("Score: ");
-        display.setCursor(4, 40);
-        display.println(score);
-        display.setCursor(4, 55);
-        display.println("High: ");
-        display.setCursor(3, 65);
-        display.println(oldHighScore);
+        display.drawStr(8, 8, "GAME OVER");
+        display.drawStr(4, 30, "SCORE:");
+        display.drawStr(4, 40, score);
+        display.drawStr(4, 55, "HIGH:");
+        display.drawStr(4, 65, oldHighScore);
     }
 
     if (state_dead_option == 0) {
-        display.setCursor(4, SCREEN_WIDTH - 26);
-        display.println("> Restart");
-        display.setCursor(3, SCREEN_WIDTH - 16);
-        display.println("  Title");
+        display.drawStr(6, SCREEN_HEIGHT - 26, "> RESTART");
+        display.drawStr(4, SCREEN_HEIGHT - 16, "  TITLE");
     } else if (state_dead_option == 1) {
-        display.setCursor(3, SCREEN_WIDTH - 26);
-        display.println("  Restart");
-        display.setCursor(4, SCREEN_WIDTH - 16);
-        display.println("> Title");
+        display.drawStr(4, SCREEN_HEIGHT - 26, "  RESTART");
+        display.drawStr(6, SCREEN_HEIGHT - 16, "> TITLE");
     }
 
-    display.setRotation(0);
     display.display();
 }
 
@@ -288,64 +252,37 @@ void drawStateOptions(){
     display.clearDisplay();
     drawUiBorder();
 
-    display.setRotation(3);
-    display.setTextSize(1);
-    display.setTextColor(WHITE);
-
-    display.setCursor(4, 10);
-    display.println("Options");
-    display.drawHorizontalLine(1, 19, SCREEN_HEIGHT - 1, WHITE);
+    display.drawStr(8, 8, "OPTIONS");
+    display.drawHorizontalLine(1, 19, SCREEN_WIDTH - 1, WHITE);
 
     if(state_options_option == 0) {
-        display.setCursor(4, 30);
-        display.println("> Music:");
-        display.setCursor(4, 40);
-        if(option_music){ display.println("  [On ]"); }
-        else { display.println("  [Off]"); }
+        display.drawStr(6, 30, "> MUSIC:");
+        display.drawStr(6, 40, option_music ? " ON" : " OFF");
 
-        display.setCursor(3, 50);
-        display.println("  Speedup:");
-        display.setCursor(3, 60);
-        if(option_speedup){ display.println("  [On ]"); }
-        else { display.println("  [Off]"); }
+        display.drawStr(4, 50, "  SPEEDUP:");
+        display.drawStr(4, 60, option_speedup ? " ON" : " OFF");
 
-        display.setCursor(3, SCREEN_WIDTH - 16);
-        display.println("  Back");
+        display.drawStr(4, SCREEN_HEIGHT - 16, "  BACK");
     }
     else if(state_options_option == 1){
-        display.setCursor(3, 30);
-        display.println("  Music:");
-        display.setCursor(3, 40);
-        if(option_music){ display.println("  [On ]"); }
-        else { display.println("  [Off]"); }
+        display.drawStr(4, 30, "  MUSIC:");
+        display.drawStr(4, 40, option_music ? " ON" : " OFF");
 
-        display.setCursor(4, 50);
-        display.println("> Speedup:");
-        display.setCursor(4, 60);
-        if(option_speedup){ display.println("  [On ]"); }
-        else { display.println("  [Off]"); }
+        display.drawStr(6, 50, "> SPEEDUP:");
+        display.drawStr(6, 60, option_speedup ? " ON" : " OFF");
 
-        display.setCursor(3, SCREEN_WIDTH - 16);
-        display.println("  Back");
+        display.drawStr(4, SCREEN_HEIGHT - 16, "  BACK");
     }
     else if(state_options_option == 2){
-        display.setCursor(3, 30);
-        display.println("  Music:");
-        display.setCursor(3, 40);
-        if(option_music){ display.println("  [On ]"); }
-        else { display.println("  [Off]"); }
+        display.drawStr(4, 30, "  MUSIC:");
+        display.drawStr(4, 40, option_music ? " ON" : " OFF");
 
-        display.setCursor(3, 50);
-        display.println("  Speedup:");
-        display.setCursor(3, 60);
-        if(option_speedup){ display.println("  [On ]"); }
-        else { display.println("  [Off]"); }
+        display.drawStr(4, 50, "  SPEEDUP:");
+        display.drawStr(4, 60, option_speedup ? " ON" : " OFF");
 
-        display.setCursor(4, SCREEN_WIDTH - 16);
-        display.println("> Back");
+        display.drawStr(6, SCREEN_HEIGHT - 16, "> BACK");
     }
 
-    display.setRotation(0);
     display.display();
 }
 
@@ -358,32 +295,19 @@ void drawStateCredits(){
     display.clearDisplay();
     drawUiBorder();
 
-    display.setRotation(3);
-    display.setTextSize(1);
-    display.setTextColor(WHITE);
+    display.drawStr(8, 8, "CREDITS");
 
-    display.setCursor(4, 10);
-    display.println("Credits");
-    display.drawHorizontalLine(1, 19, SCREEN_HEIGHT - 1, WHITE);
+    display.drawHorizontalLine(1, 19, SCREEN_WIDTH - 1, WHITE);
 
-    display.setCursor(3, 30);
-    display.println("Idea from:");
-    display.setCursor(3, 40);
-    display.println("TinyTetris");
-    display.setCursor(3, 50);
-    display.println("by:");
-    display.setCursor(3, 60);
-    display.println("AJRussell");
+    display.drawStr(4, 30, "IDEA FROM:");
+    display.drawStr(4, 40, "AJRUSSELL");
+    display.drawStr(6, SCREEN_HEIGHT - 16, "> BACK");
 
-    display.setCursor(4, SCREEN_WIDTH - 16);
-    display.println("> Back");
-
-    display.setRotation(0);
     display.display();
 }
 
 void drawUiBorder(){
-    display.drawRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, WHITE);
+    display.drawRect(0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1, WHITE);
 }
 
 unsigned long readHighScore(){
@@ -692,13 +616,8 @@ void setup() {
     Serial.begin(9600);
     while (!Serial);
 
-    // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-    if(!display.begin()) {
-        Serial.println(F("SSD1306 allocation failed"));
-        for(;;); // Don't proceed, loop forever
-    }
-
-//    display.clearDisplay();
+    display.begin();
+    display.clearDisplay();
 
     Serial.println(F("--------------"));
     Serial.print(F("GAME_X: "));
@@ -712,26 +631,6 @@ void setup() {
     Serial.print(F("GAME_BYTE_W: "));
     Serial.println(GAME_BYTE_W);
 
-
-    display.drawRect(0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1, WHITE);
-//    display.setTextColor(WHITE);
-    display.drawStr(8, 10, "ABCDEFGHI");
-    display.drawStr(8, 20, "JKLMNOPQR");
-    display.drawStr(8, 30, "STUVWXYZ0");
-    display.drawStr(8, 40, "123456789");
-    display.drawStr(8, 50, "> :");
-//    display.printText(0, 10, 5, 6, TEXT_TITLE);
-    display.display();
-//
-//    delay(1000);
-//
-//    display.fillRect(0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1, WHITE);
-//    display.display();
-
-
-
-    return;
-
     changeStateTitle();
 }
 
@@ -739,16 +638,17 @@ void setup() {
 void drawBorder(){
     display.fillRect(0, 0, GAME_X, SCREEN_HEIGHT, BLACK);
 
-    display.setRotation(3);
-    display.setTextSize(1);
-    display.setTextColor(WHITE);
-    display.setCursor(6,0);
-    display.println(score);
-    display.setRotation(0);
+//    display.setRotation(3);
+//    display.setTextSize(1);
+//    display.setTextColor(WHITE);
+//    display.setCursor(6,0);
+//    display.println(score);
+//    display.setRotation(0);
+    display.drawStr(8, 2, score);
 
-    display.drawHorizontalLine(0, 0, SCREEN_WIDTH-1, WHITE);
-    display.drawHorizontalLine(0, SCREEN_HEIGHT-2, SCREEN_WIDTH-1, WHITE);
-    display.drawVerticalLine(SCREEN_WIDTH-1, 0, SCREEN_HEIGHT-2, WHITE);
+//    display.drawHorizontalLine(0, 0, SCREEN_WIDTH-1, WHITE);
+//    display.drawHorizontalLine(0, SCREEN_HEIGHT-2, SCREEN_WIDTH-1, WHITE);
+//    display.drawVerticalLine(SCREEN_WIDTH-1, 0, SCREEN_HEIGHT-2, WHITE);
     display.drawVerticalLine(GAME_X-1, 0, SCREEN_HEIGHT-2, WHITE);
 
     display.display();
@@ -764,7 +664,6 @@ void drawGame(){
 
 // ################# LOOP METHOD #################
 void loop() {
-    return;
     if(game_state == 0){
         loopTitle();
     }
@@ -823,13 +722,13 @@ void loopGame(){
         dpad::setState();
 
         if(dpad::isLeft()){
-            moveCurBlock(0, 1);
+            moveCurBlock(1, 0);
         }
         else if(dpad::isRight()){
-            moveCurBlock(0, -1);
+            moveCurBlock(-1, 0);
         }
         else if(dpad::isDown()){
-            moveCurBlock(1, 0);
+            moveCurBlock(0, 1);
 
             drawGame();
             delay(150);
@@ -845,7 +744,7 @@ void loopGame(){
             timer = now;
 
             // Moving current block down
-            moveCurBlock(1, 0);
+            moveCurBlock(0, 1);
         }
     }
 
