@@ -3,7 +3,7 @@
 #include <EEPROM.h>
 
 #include "dpad.h"
-#include "Display.h"
+#include "display.h"
 
 
 // Ceiling division macro
@@ -714,12 +714,19 @@ void setup() {
 
 
     display.drawRect(0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1, WHITE);
+//    display.setTextColor(WHITE);
+    display.drawStr(8, 10, "ABCDEFGHI");
+    display.drawStr(8, 20, "JKLMNOPQR");
+    display.drawStr(8, 30, "STUVWXYZ0");
+    display.drawStr(8, 40, "123456789");
+    display.drawStr(8, 50, "> :");
+//    display.printText(0, 10, 5, 6, TEXT_TITLE);
     display.display();
-
-    delay(1000);
-
-    display.fillRect(0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1, WHITE);
-    display.display();
+//
+//    delay(1000);
+//
+//    display.fillRect(0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1, WHITE);
+//    display.display();
 
 
 

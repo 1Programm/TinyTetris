@@ -5,6 +5,9 @@
 #ifndef TINYTETRIS_DISPLAY_H
 #define TINYTETRIS_DISPLAY_H
 
+#include "fonts_min.h"
+
+
 #define OLED_COMMAND	                            0x80
 #define OLED_DATA	                                0x40
 
@@ -71,7 +74,6 @@ class Display {
 private:
     char screenAddress;
     unsigned char pixels[SCREEN_HEIGHT][SCREEN_BYTE_WIDTH];
-    unsigned char textColor = WHITE;
 
     void OLEDCommand(unsigned char command) {
         Wire.beginTransmission(screenAddress);
@@ -85,6 +87,22 @@ private:
         Wire.write(OLED_DATA);
         Wire.write(data);
         Wire.endTransmission();
+    }
+
+    int pow2(int num){
+        int ret = 1;
+        for(int i=0;i<num;i++){
+            ret *= 2;
+        }
+
+        return ret;
+    }
+
+    unsigned char reverse(unsigned char b) {
+        b = (b & 0xF0) >> 4 | (b & 0x0F) << 4;
+        b = (b & 0xCC) >> 2 | (b & 0x33) << 2;
+        b = (b & 0xAA) >> 1 | (b & 0x55) << 1;
+        return b;
     }
 
 public:
@@ -195,10 +213,8 @@ public:
 
     void setRotation(int i){}
     void setTextSize(int i){}
-    void setTextColor(unsigned char c){
-        textColor = c;
-    }
     void setCursor(int x, int y){}
+    void setTextColor(unsigned char c){}
 
     void println(char const* s){}
     void print(char const* s){}
@@ -211,12 +227,56 @@ public:
     void println(unsigned long s){}
     void print(unsigned long s){}
 
-    void printStr(int x, int y, char const* str){
-        Serial.print("Str length: ");
-        Serial.println(strlen(str));
-        for(int i=0;i<strlen(str);i++){
-            Serial.println(str[i]);
+    void printText(int x, int y, int w, int h, unsigned char txt[6][5]){
+        for(int i=0;i<h;i++){
+            for(int o=0;o<w;o++){
+                unsigned char b = txt[i][o];
+                pixels[y + i][1 + o] = reverse(b);
+            }
         }
+    }
+
+    void drawStr(int x, int y, char const* str){
+        for(int i=0;i<strlen(str);i++){
+            char c = str[i];
+            if(c != ' ') {
+                drawChar(x + i * 6, y, c);
+            }
+        }
+    }
+
+    void drawChar(int x, int y, char c){
+        unsigned char *arr = getChar(c);
+
+        int ix = x / 8;
+        int rx = x % 8;
+
+        if(rx == 0) {
+            for (int i=0;i<6;i++) {
+                unsigned char arrB = reverse(arr[i]);
+                pixels[y + i][ix] |= arrB;
+            }
+        }
+        else if(rx <= 3){
+            for (int i=0;i<6;i++) {
+                unsigned char arrB = reverse(arr[i]);
+                arrB = arrB << rx;
+
+                pixels[y + i][ix] |= arrB;
+            }
+        }
+        else {
+            for (int i=0;i<6;i++) {
+                unsigned char arrB = reverse(arr[i]);
+                unsigned char arrLeftB = arrB << rx;
+                unsigned char arrRightB = arrB >> (8 - rx);
+
+                pixels[y + i][ix] |= arrLeftB;
+                pixels[y + i][ix + 1] |= arrRightB;
+            }
+        }
+
+        free(arr);
     }
 
     void drawHorizontalLine(int x, int y, int x2, unsigned char c){
